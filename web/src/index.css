@@ -1,3 +1,33 @@
+:root {
+  /* 라이트 모드 색상 */
+  --bg-primary: #ffffff;
+  --bg-secondary: #f5f5f5;
+  --text-primary: #2c3e50;
+  --text-secondary: #7f8c8d;
+  --border-color: #bdc3c7;
+  --accent-color: #3498db;
+  --success-color: #27ae60;
+  --danger-color: #e74c3c;
+  --warning-color: #f39c12;
+  --sidebar-bg: #2c3e50;
+  --card-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  --transition-speed: 0.3s;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    /* 다크 모드 색상 */
+    --bg-primary: #1e1e1e;
+    --bg-secondary: #2d2d2d;
+    --text-primary: #e0e0e0;
+    --text-secondary: #a0a0a0;
+    --border-color: #404040;
+    --accent-color: #3498db;
+    --sidebar-bg: #1a1a1a;
+    --card-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+  }
+}
+
 * {
   margin: 0;
   padding: 0;
@@ -10,8 +40,9 @@ body {
     sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  background: #f5f5f5;
-  color: #333;
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+  transition: background var(--transition-speed), color var(--transition-speed);
 }
 
 #root {
@@ -22,15 +53,17 @@ body {
 .app {
   display: flex;
   height: 100vh;
-  background: #fff;
+  background: var(--bg-primary);
 }
 
 .sidebar {
   width: 250px;
-  background: #2c3e50;
+  background: var(--sidebar-bg);
   color: #fff;
   padding: 20px;
   overflow-y: auto;
+  border-right: 1px solid var(--border-color);
+  transition: background var(--transition-speed);
 }
 
 .sidebar h2 {
@@ -62,20 +95,24 @@ body {
 }
 
 .header {
-  background: #ecf0f1;
+  background: var(--bg-secondary);
   padding: 20px;
-  border-bottom: 1px solid #bdc3c7;
+  border-bottom: 1px solid var(--border-color);
+  transition: background var(--transition-speed);
 }
 
 .header h1 {
   font-size: 24px;
-  color: #2c3e50;
+  color: var(--text-primary);
+  font-weight: 600;
 }
 
 .content {
   flex: 1;
   padding: 30px;
   overflow-y: auto;
+  background: var(--bg-primary);
+  transition: background var(--transition-speed);
 }
 
 .editor-container {
@@ -176,16 +213,23 @@ body {
 }
 
 .card {
-  background: #fff;
+  background: var(--bg-primary);
   padding: 20px;
   border-radius: 8px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-  border-left: 4px solid #3498db;
+  box-shadow: var(--card-shadow);
+  border-left: 4px solid var(--accent-color);
+  border: 1px solid var(--border-color);
+  transition: all var(--transition-speed);
+}
+
+.card:hover {
+  box-shadow: 0 4px 12px rgba(52, 152, 219, 0.15);
+  transform: translateY(-2px);
 }
 
 .card h3 {
   margin-bottom: 15px;
-  color: #2c3e50;
+  color: var(--text-primary);
 }
 
 .stat-value {
