@@ -10,6 +10,7 @@ from routes.skills import router as skills_router
 from routes.context import router as context_router
 from routes.ai_guide import router as ai_guide_router
 from routes.pipeline import router as pipeline_router
+from routes.github import router as github_router
 
 # services 임포트
 from services.websocket_manager import ws_manager
@@ -36,6 +37,7 @@ app.include_router(skills_router, prefix="/api/skills", tags=["skills"])
 app.include_router(context_router, prefix="/api/context", tags=["context"])
 app.include_router(ai_guide_router, prefix="/api/guide", tags=["ai-guide"])
 app.include_router(pipeline_router, tags=["pipeline"])
+app.include_router(github_router, tags=["github"])
 
 @app.get("/")
 async def root():
