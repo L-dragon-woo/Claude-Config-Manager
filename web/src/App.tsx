@@ -3,8 +3,9 @@ import './index.css'
 import ClaudeMdEditor from './pages/ClaudeMdEditor'
 import SkillsManager from './pages/SkillsManager'
 import Dashboard from './pages/Dashboard'
+import AIGuide from './pages/AIGuide'
 
-type Page = 'dashboard' | 'claude-md' | 'skills' | 'settings'
+type Page = 'dashboard' | 'claude-md' | 'skills' | 'ai-guide' | 'settings'
 
 function App() {
   const [currentPage, setCurrentPage] = useState<Page>('dashboard')
@@ -17,6 +18,8 @@ function App() {
         return <ClaudeMdEditor />
       case 'skills':
         return <SkillsManager />
+      case 'ai-guide':
+        return <AIGuide />
       case 'settings':
         return <div className="content"><h2>설정</h2><p>준비 중입니다...</p></div>
       default:
@@ -48,6 +51,13 @@ function App() {
           onClick={() => setCurrentPage('skills')}
         >
           🛠️ skills.md
+        </div>
+
+        <div
+          className={`nav-item ${currentPage === 'ai-guide' ? 'active' : ''}`}
+          onClick={() => setCurrentPage('ai-guide')}
+        >
+          🤖 AI 가이드
         </div>
 
         <div
