@@ -9,6 +9,7 @@ from routes.claude_md import router as claude_md_router
 from routes.skills import router as skills_router
 from routes.context import router as context_router
 from routes.ai_guide import router as ai_guide_router
+from routes.pipeline import router as pipeline_router
 
 app = FastAPI(
     title="Claude Config Manager API",
@@ -30,6 +31,7 @@ app.include_router(claude_md_router, prefix="/api/claude-md", tags=["claude.me"]
 app.include_router(skills_router, prefix="/api/skills", tags=["skills"])
 app.include_router(context_router, prefix="/api/context", tags=["context"])
 app.include_router(ai_guide_router, prefix="/api/guide", tags=["ai-guide"])
+app.include_router(pipeline_router, tags=["pipeline"])
 
 @app.get("/")
 async def root():

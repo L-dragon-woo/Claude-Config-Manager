@@ -4,7 +4,7 @@ import axios from 'axios'
 interface Goal {
   id: string
   name: string
-  status: 'pending' | 'running' | 'completed' | 'failed'
+  status: 'pending' | 'running' | 'completed' | 'failed' | 'stopped'
   progress: number
   executor: string
   model: string
@@ -20,21 +20,35 @@ interface Pipeline {
   overallProgress: number
   startTime: string
   currentGoal?: string
-  status: 'idle' | 'running' | 'completed' | 'failed'
+  status: 'idle' | 'running' | 'completed' | 'failed' | 'stopped'
+}
+
+interface StoredGoals {
+  projectName: string
+  goals: Array<{
+    id: string
+    name: string
+    description: string
+    executor: string
+    model: string
+  }>
 }
 
 export default function PipelineMonitor() {
   const [pipeline, setPipeline] = useState<Pipeline | null>(null)
   const [isRunning, setIsRunning] = useState(false)
   const [selectedGoalId, setSelectedGoalId] = useState<string | null>(null)
+  const [executionId, setExecutionId] = useState<string | null>(null)
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
   const logsEndRef = useRef<HTMLDivElement>(null)
   const pollIntervalRef = useRef<NodeJS.Timeout | null>(null)
 
   // 파이프라인 상태 폴링
   useEffect(() => {
-    if (isRunning) {
+    if (isRunning && executionId) {
       pollIntervalRef.current = setInterval(() => {
-        fetchPipelineStatus()
+        fetchPipelineStatus(executionId)
       }, 1000) // 1초마다 업데이트
     } else {
       if (pollIntervalRef.current) {
@@ -47,7 +61,7 @@ export default function PipelineMonitor() {
         clearInterval(pollIntervalRef.current)
       }
     }
-  }, [isRunning])
+  }, [isRunning, executionId])
 
   // 로그 자동 스크롤
   useEffect(() => {
@@ -55,90 +69,82 @@ export default function PipelineMonitor() {
   }, [selectedGoalId, pipeline])
 
   // 파이프라인 상태 조회
-  const fetchPipelineStatus = async () => {
+  const fetchPipelineStatus = async (execId: string) => {
     try {
-      const response = await axios.get('/api/pipeline/status')
+      const response = await axios.get(`/api/pipeline/status/${execId}`)
       setPipeline(response.data)
+      setError(null)
 
-      if (response.data.status === 'completed' || response.data.status === 'failed') {
+      if (response.data.status === 'completed' || response.data.status === 'failed' || response.data.status === 'stopped') {
         setIsRunning(false)
       }
-    } catch (error) {
-      console.error('파이프라인 상태 조회 실패:', error)
+    } catch (err) {
+      console.error('파이프라인 상태 조회 실패:', err)
+      setError('파이프라인 상태를 불러올 수 없습니다')
     }
   }
 
-  // 더미 파이프라인 시작 (데모용)
-  const startPipeline = () => {
-    const demoPipeline: Pipeline = {
-      projectName: 'AI 챗봇 개발 프로젝트',
-      goals: [
-        {
-          id: 'G001',
-          name: '백엔드 API 개발',
-          status: 'running',
-          progress: 65,
-          executor: 'executor',
-          model: 'sonnet',
-          startTime: new Date().toISOString(),
-          logs: [
-            '[2026-10-25 00:00:00] 🚀 Goal G001 시작: 백엔드 API 개발',
-            '[2026-10-25 00:00:05] 📝 FastAPI 서버 초기화 중...',
-            '[2026-10-25 00:00:10] ✅ 서버 초기화 완료',
-            '[2026-10-25 00:00:15] 🔧 API 엔드포인트 구현 중...',
-            '[2026-10-25 00:00:45] ✅ 사용자 API 완성',
-            '[2026-10-25 00:00:50] ✅ 상품 API 완성',
-            '[2026-10-25 00:00:55] ⏳ 주문 API 구현 중... (65% 완료)',
-          ]
-        },
-        {
-          id: 'G002',
-          name: '프론트엔드 UI 개발',
-          status: 'pending',
-          progress: 0,
-          executor: 'designer',
-          model: 'sonnet',
-          logs: [
-            '[2026-10-25 00:00:00] ⏳ 대기 중... (G001 완료 대기)'
-          ]
-        },
-        {
-          id: 'G003',
-          name: '통합 테스트',
-          status: 'pending',
-          progress: 0,
-          executor: 'qa-tester',
-          model: 'sonnet',
-          logs: [
-            '[2026-10-25 00:00:00] ⏳ 대기 중... (G002 완료 대기)'
-          ]
-        },
-        {
-          id: 'G004',
-          name: '배포',
-          status: 'pending',
-          progress: 0,
-          executor: 'devops',
-          model: 'haiku',
-          logs: [
-            '[2026-10-25 00:00:00] ⏳ 대기 중... (G003 완료 대기)'
-          ]
-        }
-      ],
-      overallProgress: 16,
-      startTime: new Date().toISOString(),
-      currentGoal: 'G001',
-      status: 'running'
-    }
+  // 파이프라인 시작
+  const startPipeline = async () => {
+    try {
+      setLoading(true)
+      setError(null)
 
-    setPipeline(demoPipeline)
-    setIsRunning(true)
-    setSelectedGoalId('G001')
+      // localStorage에서 저장된 Goals 불러오기
+      const storedGoals = localStorage.getItem('ultragoalData')
+      if (!storedGoals) {
+        setError('저장된 Goal이 없습니다. Ultragoal 빌더에서 Goals를 설정해주세요.')
+        setLoading(false)
+        return
+      }
+
+      const goalsData: StoredGoals = JSON.parse(storedGoals)
+
+      // 파이프라인 실행 API 호출
+      const response = await axios.post('/api/pipeline/execute', {
+        projectName: goalsData.projectName,
+        goals: goalsData.goals
+      })
+
+      const newExecutionId = response.data.executionId
+      setExecutionId(newExecutionId)
+      setIsRunning(true)
+
+      // 초기 상태 조회
+      await fetchPipelineStatus(newExecutionId)
+
+    } catch (err: any) {
+      console.error('파이프라인 시작 실패:', err)
+      setError(err.response?.data?.detail || '파이프라인을 시작할 수 없습니다')
+    } finally {
+      setLoading(false)
+    }
   }
 
   // 파이프라인 중지
-  const stopPipeline = () => {
+  const stopPipeline = async () => {
+    if (!executionId) return
+
+    try {
+      setLoading(true)
+      await axios.post(`/api/pipeline/stop/${executionId}`)
+      setIsRunning(false)
+      setError(null)
+    } catch (err) {
+      console.error('파이프라인 중지 실패:', err)
+      setError('파이프라인을 중지할 수 없습니다')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  // 새 파이프라인 생성
+  const resetPipeline = () => {
+    setPipeline(null)
+    setExecutionId(null)
+    setSelectedGoalId(null)
     setIsRunning(false)
+    setError(null)
   }
 
   const getStatusColor = (status: string) => {
@@ -147,6 +153,7 @@ export default function PipelineMonitor() {
       case 'running': return '#f39c12'
       case 'completed': return '#27ae60'
       case 'failed': return '#e74c3c'
+      case 'stopped': return '#7f8c8d'
       default: return '#7f8c8d'
     }
   }
@@ -157,6 +164,7 @@ export default function PipelineMonitor() {
       case 'running': return '⏳ 진행 중'
       case 'completed': return '✅ 완료'
       case 'failed': return '❌ 실패'
+      case 'stopped': return '⏹️ 중지'
       default: return status
     }
   }
@@ -169,9 +177,29 @@ export default function PipelineMonitor() {
           <p style={{ fontSize: '16px', marginBottom: '20px' }}>
             Ultragoal 실행 상황을 실시간으로 모니터링합니다
           </p>
-          <button className="btn btn-success" onClick={startPipeline} style={{ fontSize: '16px', padding: '12px 24px' }}>
-            🎬 파이프라인 시작
+
+          {error && (
+            <div style={{
+              backgroundColor: '#f8d7da',
+              color: '#721c24',
+              padding: '12px',
+              borderRadius: '4px',
+              marginBottom: '20px',
+              textAlign: 'left'
+            }}>
+              <strong>⚠️ {error}</strong>
+            </div>
+          )}
+
+          <button
+            className="btn btn-success"
+            onClick={startPipeline}
+            disabled={loading}
+            style={{ fontSize: '16px', padding: '12px 24px' }}
+          >
+            {loading ? '시작 중...' : '🎬 파이프라인 시작'}
           </button>
+
           <p style={{ color: '#7f8c8d', marginTop: '20px', fontSize: '12px' }}>
             💡 Tip: Ultragoal 빌더에서 설정한 목표가 여기서 진행 중인 상황으로 표시됩니다.
           </p>
@@ -186,6 +214,18 @@ export default function PipelineMonitor() {
     <div className="content">
       <h2>🚀 파이프라인 모니터</h2>
 
+      {error && (
+        <div style={{
+          backgroundColor: '#f8d7da',
+          color: '#721c24',
+          padding: '12px',
+          borderRadius: '4px',
+          marginBottom: '20px'
+        }}>
+          <strong>⚠️ {error}</strong>
+        </div>
+      )}
+
       {/* 프로젝트 정보 & 전체 진행률 */}
       <div className="pipeline-header">
         <div>
@@ -198,13 +238,18 @@ export default function PipelineMonitor() {
         </div>
         <div style={{ display: 'flex', gap: '10px' }}>
           {isRunning && (
-            <button className="btn btn-danger" onClick={stopPipeline}>
+            <button className="btn btn-danger" onClick={stopPipeline} disabled={loading}>
               ⏹️ 중지
             </button>
           )}
           {!isRunning && pipeline.status === 'idle' && (
-            <button className="btn btn-success" onClick={startPipeline}>
+            <button className="btn btn-success" onClick={startPipeline} disabled={loading}>
               🎬 시작
+            </button>
+          )}
+          {(pipeline.status === 'completed' || pipeline.status === 'failed' || pipeline.status === 'stopped') && (
+            <button className="btn btn-primary" onClick={resetPipeline}>
+              🔄 새로 시작
             </button>
           )}
         </div>
@@ -342,17 +387,23 @@ export default function PipelineMonitor() {
               <div style={{ marginTop: '20px' }}>
                 <h4 style={{ marginBottom: '10px' }}>📋 실행 로그</h4>
                 <div className="logs-container">
-                  {selectedGoal.logs.map((log, idx) => (
-                    <div key={idx} style={{
-                      padding: '8px',
-                      borderBottom: '1px solid #ecf0f1',
-                      fontSize: '12px',
-                      fontFamily: 'monospace',
-                      color: log.includes('✅') ? '#27ae60' : log.includes('❌') ? '#e74c3c' : log.includes('⏳') ? '#f39c12' : '#34495e'
-                    }}>
-                      {log}
+                  {selectedGoal.logs.length === 0 ? (
+                    <div style={{ color: '#95a5a6', textAlign: 'center', padding: '20px' }}>
+                      로그가 없습니다
                     </div>
-                  ))}
+                  ) : (
+                    selectedGoal.logs.map((log, idx) => (
+                      <div key={idx} style={{
+                        padding: '8px',
+                        borderBottom: '1px solid #ecf0f1',
+                        fontSize: '12px',
+                        fontFamily: 'monospace',
+                        color: log.includes('✅') ? '#27ae60' : log.includes('❌') ? '#e74c3c' : log.includes('⏳') ? '#f39c12' : '#d4d4d4'
+                      }}>
+                        {log}
+                      </div>
+                    ))
+                  )}
                   <div ref={logsEndRef} />
                 </div>
               </div>
