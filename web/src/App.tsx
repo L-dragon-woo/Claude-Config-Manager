@@ -4,8 +4,9 @@ import ClaudeMdEditor from './pages/ClaudeMdEditor'
 import SkillsManager from './pages/SkillsManager'
 import Dashboard from './pages/Dashboard'
 import AIGuide from './pages/AIGuide'
+import UltragoalBuilder from './pages/UltragoalBuilder'
 
-type Page = 'dashboard' | 'claude-md' | 'skills' | 'ai-guide' | 'settings'
+type Page = 'dashboard' | 'claude-md' | 'skills' | 'ai-guide' | 'ultragoal' | 'settings'
 
 function App() {
   const [currentPage, setCurrentPage] = useState<Page>('dashboard')
@@ -20,6 +21,8 @@ function App() {
         return <SkillsManager />
       case 'ai-guide':
         return <AIGuide />
+      case 'ultragoal':
+        return <UltragoalBuilder />
       case 'settings':
         return <div className="content"><h2>설정</h2><p>준비 중입니다...</p></div>
       default:
@@ -58,6 +61,13 @@ function App() {
           onClick={() => setCurrentPage('ai-guide')}
         >
           🤖 AI 가이드
+        </div>
+
+        <div
+          className={`nav-item ${currentPage === 'ultragoal' ? 'active' : ''}`}
+          onClick={() => setCurrentPage('ultragoal')}
+        >
+          🎯 Ultragoal 빌더
         </div>
 
         <div
